@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction.st - Block Explorer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Loading Screen -->
+        <div id="loadingScreen" class="loading-screen">
+            <div class="loading-content">
+                <h1>Transaction.st</h1>
+                <div class="loading-spinner"></div>
+                <p>Loading blockchain data...</p>
+            </div>
+        </div>
+
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo"><a href="#" onclick="showHome()">Transaction.st</a></h1>
+                <div class="search-bar">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search address, transaction, or block hash...">
+                    <button id="searchBtn" class="search-button">Search</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- Home Page -->
+            <div id="homePage" class="page">
+                <div class="dashboard">
+                    <section class="card network-overview">
+                        <div class="card-header">
+                            <h2 class="card-title">Network Status</h2>
+                        </div>
+                        <div class="card-content">
+                            <div class="network-grid" id="networkStatus">
+                                <div class="loading">Loading network status...</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="dashboard-grid">
+                        <section class="card latest-blocks">
+                            <div class="card-header">
+                                <h2 class="card-title">Latest Blocks</h2>
+                            </div>
+                            <div class="card-content">
+                                <div id="latestBlocks" class="list">
+                                    <div class="list-item loading">Loading latest blocks...</div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="card latest-transactions">
+                            <div class="card-header">
+                                <h2 class="card-title">Latest Transactions</h2>
+                            </div>
+                            <div class="card-content">
+                                <div id="latestTransactions" class="list">
+                                    <div class="list-item loading">Connecting to live feed...</div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Detail Page -->
+            <div id="transactionPage" class="page" style="display: none;">
+                <div class="page-header">
+                    <h1 class="page-title">Transaction Details</h1>
+                </div>
+                <div class="page-content">
+                    <div id="transactionContent"></div>
+                </div>
+            </div>
+
+            <!-- Address Detail Page -->
+            <div id="addressPage" class="page" style="display: none;">
+                <div class="page-header">
+                    <h1 class="page-title">Address Details</h1>
+                </div>
+                <div class="page-content">
+                    <div id="addressContent"></div>
+                </div>
+            </div>
+
+            <!-- Block Detail Page -->
+            <div id="blockPage" class="page" style="display: none;">
+                <div class="page-header">
+                    <h1 class="page-title">Block Details</h1>
+                </div>
+                <div class="page-content">
+                    <div id="blockContent"></div>
+                </div>
+            </div>
+
+            <!-- 404 Page -->
+            <div id="notFoundPage" class="page" style="display: none;">
+                <div class="page-header">
+                    <h1 class="page-title">Page Not Found</h1>
+                </div>
+                <div class="page-content">
+                    <div class="error">
+                        <h3>404 - Page Not Found</h3>
+                        <p>The URL you entered doesn't match any valid pages. Please check the URL and try again, or use the search function to find what you're looking for.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
