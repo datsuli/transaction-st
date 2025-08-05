@@ -67,12 +67,17 @@ class BlockExplorer {
     async handleHashChange() {
         const hash = window.location.hash.slice(1);
         
-        if (!hash) {
+        if (!hash || hash === '/') {
             this.showHome();
             return;
         }
         
-        const parts = hash.split('/');
+        if (!hash.startsWith('/')) {
+            this.show404();
+            return;
+        }
+        
+        const parts = hash.slice(1).split('/');
         
         if (parts.length !== 2) {
             this.show404();
@@ -102,7 +107,7 @@ class BlockExplorer {
     }
 
     updateHash(type, id) {
-        const newHash = `#${type}/${id}`;
+        const newHash = `#/${type}/${id}`;
         if (window.location.hash !== newHash) {
             window.history.pushState(null, '', newHash);
         }
