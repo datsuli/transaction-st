@@ -1,4 +1,4 @@
-# Transaction St Block Explorer
+# Transaction Street
 
 Transaction Street is a light-weight and portable blockchain explorer for Bitcoin, Bitcoin Cash, Litecoin, Dogecoin, and Dash, built with vanilla JavaScript and modern web standards for optimal performance and user experience.
 
