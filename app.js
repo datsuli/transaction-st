@@ -357,6 +357,12 @@ class BlockExplorer {
                         <span class="detail-label">Script:</span>
                         <span class="detail-value hash">${tx.scriptPubKey}</span>
                     </div>
+                    ${tx.time ? `
+                    <div class="detail-row">
+                        <span class="detail-label">First Seen:</span>
+                        <span class="detail-value">${new Date(tx.time).toLocaleString()}</span>
+                    </div>
+                    ` : ''}
                 </div>
             `;
         });
@@ -366,6 +372,8 @@ class BlockExplorer {
 
     displayRpcTransaction(data, network, container, dbData = null) {
         const tx = data.tx;
+        const firstSeenTime = dbData && dbData.data && dbData.data.length > 0 ? dbData.data[0].time : null;
+        
         let html = `
             <div class="detail-card">
                 <h3>Transaction Summary</h3>
@@ -376,7 +384,7 @@ class BlockExplorer {
                 <div class="detail-row">
                     <span class="detail-label">Block:</span>
                     <span class="detail-value">
-                        ${tx.block ? `<a class="block-link" onclick="showBlockByHash('${tx.block}', '${network}')">${tx.block}</a>` : 'N/A'}
+                        ${tx.block ? `<a class="block-link" onclick="showBlockByHash('${tx.block}', '${network}')">${tx.block}</a>` : 'Unconfirmed'}
                     </span>
                 </div>
                 <div class="detail-row">
@@ -403,6 +411,12 @@ class BlockExplorer {
                     <span class="detail-label">Lock Time:</span>
                     <span class="detail-value">${tx.lock}</span>
                 </div>
+                ${firstSeenTime ? `
+                <div class="detail-row">
+                    <span class="detail-label">First Seen:</span>
+                    <span class="detail-value">${new Date(firstSeenTime).toLocaleString()}</span>
+                </div>
+                ` : ''}
             </div>
         `;
 
@@ -434,7 +448,7 @@ class BlockExplorer {
                                     <div class="io-amount">${this.formatAmountWithUSD(input.value, network)}</div>
                                     <div class="io-address" onclick="showAddress('${input.address}')">${input.address || 'N/A'}</div>
                                     <div class="text-xs text-muted">
-                                        From: <span class="hash" onclick="showTransaction('${input.txid}', '${network}')">${input.txid}:${input.vout}</span>
+                                        From: <span class="hash hash-truncate" onclick="showTransaction('${input.txid}', '${network}')">${input.txid}:${input.vout}</span>
                                     </div>
                                 </div>
                             `;
@@ -443,7 +457,9 @@ class BlockExplorer {
                 </div>
                 <div>
                     <h3>Outputs${outputs.length > 0 ? ` (${outputs.length})` : ''}</h3>
-                    ${outputs.length > 0 ? outputs.map((output, index) => `
+                    ${outputs.length > 0 ? outputs.map((output, index) => {
+                        const dbOutput = dbData && dbData.data ? dbData.data.find(db => db.vout === output.n) : null;
+                        return `
                         <div class="output-item">
                             <div class="io-amount">${this.formatAmountWithUSD(output.value, network)}</div>
                             ${output.script.address ? 
@@ -453,8 +469,14 @@ class BlockExplorer {
                             <div class="text-xs text-muted">
                                 Output #${index} (${output.script.type})
                             </div>
+                            ${dbOutput && dbOutput.spent ? `
+                                <div class="text-xs text-muted" style="margin-top: 0.25rem;">
+                                    Spent: <a class="hash hash-truncate" onclick="showTransaction('${dbOutput.spent}', '${network}')">${dbOutput.spent}</a>
+                                </div>
+                            ` : ''}
                         </div>
-                    `).join('') : '<div class="output-item" class="text-muted">No outputs</div>'}
+                        `;
+                    }).join('') : '<div class="output-item" class="text-muted">No outputs</div>'}
                 </div>
             </div>
         `;
@@ -487,45 +509,63 @@ class BlockExplorer {
     }
 
     displayAddress(data, container) {
-        const network = data.transactions.length > 0 ? data.transactions[0].crypto : 'btc';
+        const allTransactions = [...data.inbound, ...data.outbound];
+        const network = allTransactions.length > 0 ? allTransactions[0].crypto : 'btc';
+        const balance = data.received_confirmed - data.sent_confirmed;
         
         const html = `
             <div class="balance-summary">
                 <h3>Address: ${data.address}</h3>
                 <div class="balance-item">
+                    <span>Current Balance:</span>
+                    <span>${this.formatAmountWithUSD(balance.toFixed(8), network)}</span>
+                </div>
+                <div class="balance-item">
                     <span>Total Received:</span>
                     <span>${this.formatAmountWithUSD(data.received, network)}</span>
                 </div>
                 <div class="balance-item">
-                    <span>Confirmed Balance:</span>
-                    <span>${this.formatAmountWithUSD(data.confirmed, network)}</span>
+                    <span>Received Confirmed:</span>
+                    <span>${this.formatAmountWithUSD(data.received_confirmed, network)}</span>
                 </div>
                 <div class="balance-item">
-                    <span>Unconfirmed:</span>
-                    <span>${this.formatAmountWithUSD((data.received - data.confirmed).toFixed(8), network)}</span>
+                    <span>Total Sent:</span>
+                    <span>${this.formatAmountWithUSD(data.sent, network)}</span>
+                </div>
+                <div class="balance-item">
+                    <span>Sent Confirmed:</span>
+                    <span>${this.formatAmountWithUSD(data.sent_confirmed, network)}</span>
                 </div>
                 <div class="balance-item">
                     <span>Total Transactions:</span>
-                    <span>${data.transactions.length}</span>
+                    <span>${allTransactions.length}</span>
                 </div>
             </div>
             
             <div class="detail-card">
-                <h3>Transaction History</h3>
+                <h3>Transaction History (${allTransactions.length})</h3>
                 <div class="tx-list">
-                    ${data.transactions.map(tx => `
-                        <div class="tx-in-block" onclick="showTransaction('${tx.txid}', '${tx.crypto}')">
+                    ${this.getSortedTransactions(data.inbound, data.outbound).map(tx => `
+                        <div class="tx-in-block" onclick="showTransaction('${tx.type === 'inbound' ? tx.txid : tx.spending_txid}', '${tx.crypto}')">
                             <div class="flex-between">
                                 <div>
-                                    <div class="text-bold">${this.formatAmountWithUSD(tx.amount, tx.crypto)}</div>
+                                    <div class="text-bold ${tx.type === 'inbound' ? 'text-green' : 'text-red'}">
+                                        ${tx.type === 'inbound' ? '+' : '-'}${this.formatAmountWithUSD(tx.amount, tx.crypto)}
+                                    </div>
                                     <div class="text-small text-muted">
-                                        ${tx.block ? 'Confirmed' : 'Unconfirmed'}
+                                        ${tx.block ? 'Confirmed' : 'Unconfirmed'} • 
+                                        ${tx.type === 'inbound' ? 
+                                            `Received (Output #${tx.vout})` : 
+                                            `Sent (from ${tx.prev_txid.substring(0, 8)}...)`
+                                        }
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <div class="tx-hash">${tx.txid}</div>
+                                    <div class="tx-hash">${tx.type === 'inbound' ? tx.txid : tx.spending_txid}</div>
                                     <div class="text-small text-muted">
                                         ${tx.block ? `Block: <span class="hash">${tx.block}</span>` : 'Pending'}
+                                        ${tx.type === 'inbound' && tx.spent ? ` • Spent` : ''}
+                                        ${tx.time ? ` • ${new Date(tx.time).toLocaleString()}` : ''}
                                     </div>
                                 </div>
                             </div>
@@ -536,6 +576,16 @@ class BlockExplorer {
         `;
         
         container.innerHTML = html;
+    }
+
+    getSortedTransactions(inbound, outbound) {
+        // Add type flag to each transaction
+        const inboundWithType = inbound.map(tx => ({ ...tx, type: 'inbound' }));
+        const outboundWithType = outbound.map(tx => ({ ...tx, type: 'outbound' }));
+        
+        // Combine and sort by time (newest first)
+        const combined = [...inboundWithType, ...outboundWithType];
+        return combined.sort((a, b) => (b.time || 0) - (a.time || 0));
     }
 
     async showBlock(hash, network) {
