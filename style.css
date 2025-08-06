@@ -190,7 +190,7 @@ body {
 }
 
 .card-header {
-    padding: var(--space-lg);
+    padding: var(--space-md);
     border-bottom: 1px solid var(--color-border);
     background: rgba(30, 41, 59, 0.5);
 }
@@ -407,6 +407,14 @@ body {
 .hash:hover {
     color: #2563eb;
     text-decoration: underline;
+}
+
+.hash-truncate {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
 }
 
 .address-link, .tx-link, .block-link {
