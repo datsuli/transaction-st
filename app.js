@@ -79,12 +79,23 @@ class BlockExplorer {
         
         const parts = hash.slice(1).split('/');
         
-        if (parts.length !== 2) {
+        if (parts.length < 2 || parts.length > 3) {
             this.show404();
             return;
         }
         
-        const [type, id] = parts;
+        const type = parts[0];
+        let network = null;
+        let id;
+        
+        if (parts.length === 3) {
+            // Format: /tx/btc/hash or /block/btc/hash  
+            network = parts[1];
+            id = parts[2];
+        } else {
+            // Format: /tx/hash or /address/addr or /block/hash
+            id = parts[1];
+        }
         
         if (!id.trim()) {
             this.show404();
@@ -93,10 +104,14 @@ class BlockExplorer {
         
         switch (type) {
             case 'tx':
-                await this.showTransaction(id);
+                await this.showTransaction(id, network);
                 break;
             case 'block':
-                await this.searchBlockHash(id);
+                if (network) {
+                    await this.showBlock(id, network);
+                } else {
+                    await this.searchBlockHash(id);
+                }
                 break;
             case 'address':
                 await this.showAddress(id);
@@ -106,8 +121,8 @@ class BlockExplorer {
         }
     }
 
-    updateHash(type, id) {
-        const newHash = `#/${type}/${id}`;
+    updateHash(type, id, network = null) {
+        const newHash = network ? `#/${type}/${network}/${id}` : `#/${type}/${id}`;
         if (window.location.hash !== newHash) {
             window.history.pushState(null, '', newHash);
         }
@@ -249,7 +264,7 @@ class BlockExplorer {
     }
 
     async showTransaction(txid, knownNetwork = null) {
-        this.updateHash('tx', txid);
+        this.updateHash('tx', txid, knownNetwork);
         this.currentPage = 'transaction';
         this.showPage('transactionPage');
         this.updateTitle(`Transaction ${txid.substring(0, 8)}... - Transaction.st`);
@@ -329,7 +344,7 @@ class BlockExplorer {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Address</span>
-                        <span class="detail-value"><a class="address-link" onclick="showAddress('${tx.address}')">${tx.address}</a></span>
+                        <span class="detail-value"><a class="address-link" href="#/address/${tx.address}">${tx.address}</a></span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Amount</span>
@@ -342,7 +357,7 @@ class BlockExplorer {
                     <div class="detail-row">
                         <span class="detail-label">Block</span>
                         <span class="detail-value">
-                            ${tx.block ? `<a class="block-link" onclick="showBlockByHash('${tx.block}', '${tx.crypto}')">${tx.block}</a>` : 'Unconfirmed'}
+                            ${tx.block ? `<a class="block-link" href="#/block/${tx.crypto}/${tx.block}">${tx.block}</a>` : 'Unconfirmed'}
                         </span>
                     </div>
                     <div class="detail-row">
@@ -384,7 +399,7 @@ class BlockExplorer {
                 <div class="detail-row">
                     <span class="detail-label">Block</span>
                     <span class="detail-value">
-                        ${tx.block ? `<a class="block-link" onclick="showBlockByHash('${tx.block}', '${network}')">${tx.block}</a>` : 'Unconfirmed'}
+                        ${tx.block ? `<a class="block-link" href="#/block/${network}/${tx.block}">${tx.block}</a>` : 'Unconfirmed'}
                     </span>
                 </div>
                 <div class="detail-row">
@@ -445,9 +460,9 @@ class BlockExplorer {
                         } else {
                             return `
                                 <div class="input-item">
-                                <div class="io-address" onclick="showAddress('${input.address}')">${input.address || 'N/A'}</div>
+                                <div class="io-address"><a href="#/address/${input.address}">${input.address || 'N/A'}</a></div>
                                     <div class="io-amount">${this.formatAmountWithUSD(input.value, network)}</div>
-                                    <div class="text-xs text-muted"><span class="hash hash-truncate" onclick="showTransaction('${input.txid}', '${network}')">${input.txid}:${input.vout}</span></div>
+                                    <div class="text-xs text-muted"><span class="hash hash-truncate"><a href="#/tx/${network}/${input.txid}">${input.txid}:${input.vout}</a></span></div>
                                 </div>
                             `;
                         }
@@ -461,13 +476,13 @@ class BlockExplorer {
                         <div class="output-item">
                             <div class="text-xs text-muted">Output #${index} (${output.script.type})</div>
                             ${output.script.address ? 
-                                `<div class="io-address" onclick="showAddress('${output.script.address}')">${output.script.address}</div>` :
+                                `<div class="io-address"><a href="#/address/${output.script.address}">${output.script.address}</a></div>` :
                                 `<div class="coinbase-data" class="text-muted">${output.script.asm || 'N/A'}</div>`
                             }
                             <div class="io-amount">${this.formatAmountWithUSD(output.value, network)}</div>
                             ${dbOutput && dbOutput.spent ? `
                                 <div class="text-xs text-muted" style="margin-top: 0.25rem;">
-                                    <a class="hash hash-truncate" onclick="showTransaction('${dbOutput.spent}', '${network}')">${dbOutput.spent}</a>
+                                    <a class="hash hash-truncate" href="#/tx/${network}/${dbOutput.spent}">${dbOutput.spent}</a>
                                 </div>
                             ` : ''}
                         </div>
@@ -542,7 +557,7 @@ class BlockExplorer {
                 <h3>Transaction History (${allTransactions.length})</h3>
                 <div class="tx-list">
                     ${this.getSortedTransactions(data.inbound, data.outbound).map(tx => `
-                        <div class="tx-in-block" onclick="showTransaction('${tx.type === 'inbound' ? tx.txid : tx.spending_txid}', '${tx.crypto}')">
+                        <a class="tx-in-block" href="#/tx/${tx.crypto}/${tx.type === 'inbound' ? tx.txid : tx.spending_txid}">
                             <div class="flex-between">
                                 <div>
                                     <div class="text-bold ${tx.type === 'inbound' ? 'text-green' : 'text-red'}">
@@ -559,13 +574,13 @@ class BlockExplorer {
                                 <div class="text-right">
                                     <div class="tx-hash">${tx.type === 'inbound' ? tx.txid : tx.spending_txid}</div>
                                     <div class="text-small text-muted">
-                                        ${tx.block ? `Block: <span class="hash">${tx.block}</span>` : 'Pending'}
+                                        ${tx.block ? `Block: <a class="hash" href="#/block/${tx.crypto}/${tx.block}">${tx.block}</a>` : 'Pending'}
                                         ${tx.type === 'inbound' && tx.spent ? ` • Spent` : ''}
                                         ${tx.time ? ` • ${new Date(tx.time).toLocaleString()}` : ''}
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </a>
                     `).join('')}
                 </div>
             </div>
@@ -585,7 +600,7 @@ class BlockExplorer {
     }
 
     async showBlock(hash, network) {
-        this.updateHash('block', hash);
+        this.updateHash('block', hash, network);
         this.currentPage = 'block';
         this.showPage('blockPage');
         this.updateTitle(`Block ${hash.substring(0, 8)}... - Transaction.st`);
@@ -652,7 +667,7 @@ class BlockExplorer {
                     <span class="detail-label">Previous Block</span>
                     <span class="detail-value">
                         ${data.previousblockhash ? 
-                            `<a class="block-link" onclick="showBlockByHash('${data.previousblockhash}', '${network}')">${data.previousblockhash}</a>` : 
+                            `<a class="block-link" href="#/block/${network}/${data.previousblockhash}">${data.previousblockhash}</a>` : 
                             'Genesis Block'
                         }
                     </span>
@@ -661,7 +676,7 @@ class BlockExplorer {
                     <span class="detail-label">Next Block</span>
                     <span class="detail-value">
                         ${data.nextblockhash ? 
-                            `<a class="block-link" onclick="showBlockByHash('${data.nextblockhash}', '${network}')">${data.nextblockhash}</a>` : 
+                            `<a class="block-link" href="#/block/${network}/${data.nextblockhash}">${data.nextblockhash}</a>` : 
                             'Latest Block'
                         }
                     </span>
@@ -675,7 +690,7 @@ class BlockExplorer {
                     <h3>Transactions (${data.tx.length})</h3>
                     <div class="tx-list" id="blockTxList">
                         ${data.tx.map((txid, index) => `
-                            <div class="tx-in-block" onclick="showTransaction('${txid}', '${network}')" id="tx-${txid}">
+                            <a class="tx-in-block" href="#/tx/${network}/${txid}" id="tx-${txid}">
                                 <div>
                                     <div class="flex-center">
                                         <span>#${index} </span>
@@ -683,7 +698,7 @@ class BlockExplorer {
                                     </div>
                                     <div class="hash">${txid}</div>
                                 </div>
-                            </div>
+                            </a>
                         `).join('')}
                     </div>
                 </div>
@@ -823,13 +838,13 @@ class BlockExplorer {
         allBlocks.sort((a, b) => b.timestamp - a.timestamp);
         
         const html = allBlocks.slice(0, 5).map(block => `
-            <div class="list-item block-item" onclick="showBlockByHash('${block.hash}', '${block.crypto}')">
+            <a class="list-item block-item" href="#/block/${block.crypto}/${block.hash}">
                 <div class="block-summary">
                     <span class="block-height">${block.crypto.toUpperCase()} #${block.height.toLocaleString()}</span>
                     <span class="block-time">${block.time ? this.formatBlockTime(block.time) : ''}</span>
                 </div>
                 <div class="block-hash">${block.hash}</div>
-            </div>
+            </a>
         `).join('');
         
         container.innerHTML = html;
@@ -849,7 +864,7 @@ class BlockExplorer {
         }
 
         const html = this.latestTransactions.map(tx => `
-            <div class="list-item transaction-item" onclick="showTransaction('${tx.txid}', '${tx.crypto}')">
+            <a class="list-item transaction-item" href="#/tx/${tx.crypto}/${tx.txid}">
                 <div class="tx-summary">
                     <span class="tx-network">${tx.crypto.toUpperCase()}</span>
                     <span class="tx-amount">${this.formatAmountWithUSD(tx.amount, tx.crypto)}</span>
@@ -860,7 +875,7 @@ class BlockExplorer {
                         ${tx.inputs}→${tx.outputs} • ${tx.block ? 'Confirmed' : 'Unconfirmed'}
                     </div>
                 </div>
-            </div>
+            </a>
         `).join('');
 
         container.innerHTML = html;
