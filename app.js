@@ -557,7 +557,7 @@ class BlockExplorer {
                 <h3>Transaction History (${allTransactions.length})</h3>
                 <div class="tx-list">
                     ${this.getSortedTransactions(data.inbound, data.outbound).map(tx => `
-                        <a class="tx-in-block" href="#/tx/${tx.crypto}/${tx.type === 'inbound' ? tx.txid : tx.spending_txid}">
+                        <div class="tx-in-block" onclick="showTransaction('${tx.type === 'inbound' ? tx.txid : tx.spending_txid}', '${tx.crypto}')">
                             <div class="flex-between">
                                 <div>
                                     <div class="text-bold ${tx.type === 'inbound' ? 'text-green' : 'text-red'}">
@@ -574,13 +574,13 @@ class BlockExplorer {
                                 <div class="text-right">
                                     <div class="tx-hash">${tx.type === 'inbound' ? tx.txid : tx.spending_txid}</div>
                                     <div class="text-small text-muted">
-                                        ${tx.block ? `Block: <a class="hash" href="#/block/${tx.crypto}/${tx.block}">${tx.block}</a>` : 'Pending'}
+                                        ${tx.block ? `Block: <a class="hash" href="#/block/${tx.crypto}/${tx.block}" onclick="event.stopPropagation()">${tx.block}</a>` : 'Pending'}
                                         ${tx.type === 'inbound' && tx.spent ? ` • Spent` : ''}
                                         ${tx.time ? ` • ${new Date(tx.time).toLocaleString()}` : ''}
                                     </div>
                                 </div>
                             </div>
-                        </a>
+                        </div>
                     `).join('')}
                 </div>
             </div>
