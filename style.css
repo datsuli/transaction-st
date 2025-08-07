@@ -203,6 +203,7 @@ body {
 }
 
 .card-content {
+    font-family: monospace;
     padding: var(--space-lg);
 }
 
@@ -385,7 +386,7 @@ body {
 }
 
 .detail-label {
-    min-width: 120px;
+    min-width: 143px;
     color: #94a3b8;
     font-weight: 500;
     flex-shrink: 0;
@@ -416,7 +417,7 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    display: inline-block;
+    display: block;
 }
 
 .address-link, .tx-link, .block-link {
@@ -467,7 +468,6 @@ body {
 .io-amount {
     font-weight: 600;
     color: #f8fafc;
-    margin-bottom: 0.5rem;
 }
 
 .io-address {
