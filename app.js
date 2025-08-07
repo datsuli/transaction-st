@@ -143,8 +143,8 @@ class BlockExplorer {
                     </h3>
                     <div class="network-stats">
                         <div><strong>Block:</strong> ${networkData.blocks.toLocaleString()}</div>
-                        <div><strong>Difficulty:</strong> ${this.formatNumber(networkData.difficulty)}</div>
                         <div><strong>Size:</strong> ${this.formatBytes(networkData.size_on_disk)}</div>
+                        <div><strong>Uptime:</strong> ${this.formatUptime(networkData.uptime)}</div>
                     </div>
                 `;
             } else {
@@ -324,42 +324,42 @@ class BlockExplorer {
                 <div class="detail-card">
                     <h3>Transaction Output ${index}</h3>
                     <div class="detail-row">
-                        <span class="detail-label">TXID:</span>
+                        <span class="detail-label">TXID</span>
                         <span class="detail-value hash">${tx.txid}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Address:</span>
+                        <span class="detail-label">Address</span>
                         <span class="detail-value"><a class="address-link" onclick="showAddress('${tx.address}')">${tx.address}</a></span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Amount:</span>
+                        <span class="detail-label">Amount</span>
                         <span class="detail-value">${this.formatAmountWithUSD(tx.amount, tx.crypto)}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Amount (Satoshis):</span>
+                        <span class="detail-label">Amount (Satoshis)</span>
                         <span class="detail-value">${tx.amount_sat.toLocaleString()}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Block:</span>
+                        <span class="detail-label">Block</span>
                         <span class="detail-value">
                             ${tx.block ? `<a class="block-link" onclick="showBlockByHash('${tx.block}', '${tx.crypto}')">${tx.block}</a>` : 'Unconfirmed'}
                         </span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Network:</span>
+                        <span class="detail-label">Network</span>
                         <span class="detail-value">${tx.crypto.toUpperCase()}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Output Index:</span>
+                        <span class="detail-label">Output Index</span>
                         <span class="detail-value">${tx.vout}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Script:</span>
+                        <span class="detail-label">Script</span>
                         <span class="detail-value hash">${tx.scriptPubKey}</span>
                     </div>
                     ${tx.time ? `
                     <div class="detail-row">
-                        <span class="detail-label">First Seen:</span>
+                        <span class="detail-label">First Seen</span>
                         <span class="detail-value">${new Date(tx.time).toLocaleString()}</span>
                     </div>
                     ` : ''}
@@ -378,42 +378,42 @@ class BlockExplorer {
             <div class="detail-card">
                 <h3>Transaction Summary</h3>
                 <div class="detail-row">
-                    <span class="detail-label">Hash:</span>
+                    <span class="detail-label">Hash</span>
                     <span class="detail-value">${tx.hash}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Block:</span>
+                    <span class="detail-label">Block</span>
                     <span class="detail-value">
                         ${tx.block ? `<a class="block-link" onclick="showBlockByHash('${tx.block}', '${network}')">${tx.block}</a>` : 'Unconfirmed'}
                     </span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Network:</span>
+                    <span class="detail-label">Network</span>
                     <span class="detail-value">${network.toUpperCase()}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Size:</span>
+                    <span class="detail-label">Size</span>
                     <span class="detail-value">${tx.size} bytes</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Fee:</span>
+                    <span class="detail-label">Fee</span>
                     <span class="detail-value">${this.formatAmountWithUSD(tx.fee, network)}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Fee Rate:</span>
+                    <span class="detail-label">Fee Rate</span>
                     <span class="detail-value">${this.calculateFeeRate(tx.fee, tx.size, network)}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Version:</span>
+                    <span class="detail-label">Version</span>
                     <span class="detail-value">${tx.version}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Lock Time:</span>
+                    <span class="detail-label">Lock Time</span>
                     <span class="detail-value">${tx.lock}</span>
                 </div>
                 ${firstSeenTime ? `
                 <div class="detail-row">
-                    <span class="detail-label">First Seen:</span>
+                    <span class="detail-label">First Seen</span>
                     <span class="detail-value">${new Date(firstSeenTime).toLocaleString()}</span>
                 </div>
                 ` : ''}
@@ -445,11 +445,9 @@ class BlockExplorer {
                         } else {
                             return `
                                 <div class="input-item">
+                                <div class="io-address" onclick="showAddress('${input.address}')">${input.address || 'N/A'}</div>
                                     <div class="io-amount">${this.formatAmountWithUSD(input.value, network)}</div>
-                                    <div class="io-address" onclick="showAddress('${input.address}')">${input.address || 'N/A'}</div>
-                                    <div class="text-xs text-muted">
-                                        From: <span class="hash hash-truncate" onclick="showTransaction('${input.txid}', '${network}')">${input.txid}:${input.vout}</span>
-                                    </div>
+                                    <div class="text-xs text-muted"><span class="hash hash-truncate" onclick="showTransaction('${input.txid}', '${network}')">${input.txid}:${input.vout}</span></div>
                                 </div>
                             `;
                         }
@@ -461,17 +459,15 @@ class BlockExplorer {
                         const dbOutput = dbData && dbData.data ? dbData.data.find(db => db.vout === output.n) : null;
                         return `
                         <div class="output-item">
-                            <div class="io-amount">${this.formatAmountWithUSD(output.value, network)}</div>
+                            <div class="text-xs text-muted">Output #${index} (${output.script.type})</div>
                             ${output.script.address ? 
                                 `<div class="io-address" onclick="showAddress('${output.script.address}')">${output.script.address}</div>` :
                                 `<div class="coinbase-data" class="text-muted">${output.script.asm || 'N/A'}</div>`
                             }
-                            <div class="text-xs text-muted">
-                                Output #${index} (${output.script.type})
-                            </div>
+                            <div class="io-amount">${this.formatAmountWithUSD(output.value, network)}</div>
                             ${dbOutput && dbOutput.spent ? `
                                 <div class="text-xs text-muted" style="margin-top: 0.25rem;">
-                                    Spent: <a class="hash hash-truncate" onclick="showTransaction('${dbOutput.spent}', '${network}')">${dbOutput.spent}</a>
+                                    <a class="hash hash-truncate" onclick="showTransaction('${dbOutput.spent}', '${network}')">${dbOutput.spent}</a>
                                 </div>
                             ` : ''}
                         </div>
@@ -514,31 +510,31 @@ class BlockExplorer {
         const balance = data.received_confirmed - data.sent_confirmed;
         
         const html = `
-            <div class="balance-summary">
+            <div class="detail-card">
                 <h3>Address: ${data.address}</h3>
-                <div class="balance-item">
-                    <span>Current Balance:</span>
-                    <span>${this.formatAmountWithUSD(balance.toFixed(8), network)}</span>
+                <div class="detail-row">
+                    <span class="detail-label">Balance</span>
+                    <span class="detail-value">${this.formatAmountWithUSD(balance.toFixed(8), network)}</span>
                 </div>
-                <div class="balance-item">
-                    <span>Total Received:</span>
-                    <span>${this.formatAmountWithUSD(data.received, network)}</span>
+                <div class="detail-row">
+                    <span class="detail-label">Transactions</span>
+                    <span class="detail-value">${allTransactions.length}</span>
                 </div>
-                <div class="balance-item">
-                    <span>Received Confirmed:</span>
-                    <span>${this.formatAmountWithUSD(data.received_confirmed, network)}</span>
+                <div class="detail-row">
+                    <span class="detail-label">Received</span>
+                    <span class="detail-value">${this.formatAmountWithUSD(data.received, network)}</span>
                 </div>
-                <div class="balance-item">
-                    <span>Total Sent:</span>
-                    <span>${this.formatAmountWithUSD(data.sent, network)}</span>
+                <div class="detail-row">
+                    <span class="detail-label">Received Confirmed</span>
+                    <span class="detail-value">${this.formatAmountWithUSD(data.received_confirmed, network)}</span>
                 </div>
-                <div class="balance-item">
-                    <span>Sent Confirmed:</span>
-                    <span>${this.formatAmountWithUSD(data.sent_confirmed, network)}</span>
+                <div class="detail-row">
+                    <span class="detail-label">Sent</span>
+                    <span class="detail-value">${this.formatAmountWithUSD(data.sent, network)}</span>
                 </div>
-                <div class="balance-item">
-                    <span>Total Transactions:</span>
-                    <span>${allTransactions.length}</span>
+                <div class="detail-row">
+                    <span class="detail-label">Sent Confirmed</span>
+                    <span class="detail-value">${this.formatAmountWithUSD(data.sent_confirmed, network)}</span>
                 </div>
             </div>
             
@@ -617,43 +613,43 @@ class BlockExplorer {
             <div class="detail-card">
                 <h3>Block Information</h3>
                 <div class="detail-row">
-                    <span class="detail-label">Hash:</span>
+                    <span class="detail-label">Hash</span>
                     <span class="detail-value">${data.hash}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Height:</span>
+                    <span class="detail-label">Height</span>
                     <span class="detail-value">${data.height?.toLocaleString() || 'N/A'}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Network:</span>
+                    <span class="detail-label">Network</span>
                     <span class="detail-value">${network.toUpperCase()}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Time:</span>
+                    <span class="detail-label">Time</span>
                     <span class="detail-value">${new Date(data.time * 1000).toLocaleString()}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Transactions:</span>
+                    <span class="detail-label">Transactions</span>
                     <span class="detail-value">${data.nTx || data.tx?.length || 0}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Size:</span>
+                    <span class="detail-label">Size</span>
                     <span class="detail-value">${data.size} bytes</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Difficulty:</span>
+                    <span class="detail-label">Difficulty</span>
                     <span class="detail-value">${this.formatNumber(data.difficulty)}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Nonce:</span>
+                    <span class="detail-label">Nonce</span>
                     <span class="detail-value">${data.nonce}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Merkle Root:</span>
+                    <span class="detail-label">Merkle Root</span>
                     <span class="detail-value">${data.merkleroot}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Previous Block:</span>
+                    <span class="detail-label">Previous Block</span>
                     <span class="detail-value">
                         ${data.previousblockhash ? 
                             `<a class="block-link" onclick="showBlockByHash('${data.previousblockhash}', '${network}')">${data.previousblockhash}</a>` : 
@@ -662,7 +658,7 @@ class BlockExplorer {
                     </span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Next Block:</span>
+                    <span class="detail-label">Next Block</span>
                     <span class="detail-value">
                         ${data.nextblockhash ? 
                             `<a class="block-link" onclick="showBlockByHash('${data.nextblockhash}', '${network}')">${data.nextblockhash}</a>` : 
@@ -938,6 +934,22 @@ class BlockExplorer {
         
         const blockTime = new Date(timestamp * 1000);
         return blockTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    formatUptime(seconds) {
+        if (!seconds || seconds < 0) return 'N/A';
+        
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        
+        if (days > 0) {
+            return `${days}d ${hours}h`;
+        } else if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        } else {
+            return `${minutes}m`;
+        }
     }
 
     formatAmountWithUSD(amount, network) {
