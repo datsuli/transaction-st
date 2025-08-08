@@ -9,6 +9,7 @@ class BlockExplorer {
         this.currentPage = 'home';
         this.latestTransactions = [];
         this.latestBlocks = [];
+        this.currentTransactionId = null;
         
         this.init();
     }
@@ -266,6 +267,7 @@ class BlockExplorer {
     async showTransaction(txid, knownNetwork = null) {
         this.updateHash('tx', txid, knownNetwork);
         this.currentPage = 'transaction';
+        this.currentTransactionId = txid;
         this.showPage('transactionPage');
         this.updateTitle(`Transaction ${txid.substring(0, 8)}... - Transaction.st`);
         
@@ -356,7 +358,7 @@ class BlockExplorer {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Block</span>
-                        <span class="detail-value">
+                        <span class="detail-value" ${!tx.block ? 'data-block-status="unconfirmed"' : ''}>
                             ${tx.block ? `<a class="block-link" href="#/block/${tx.crypto}/${tx.block}">${tx.block}</a>` : 'Unconfirmed'}
                         </span>
                     </div>
@@ -398,7 +400,7 @@ class BlockExplorer {
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Block</span>
-                    <span class="detail-value">
+                    <span class="detail-value" ${!tx.block ? 'data-block-status="unconfirmed"' : ''}>
                         ${tx.block ? `<a class="block-link" href="#/block/${network}/${tx.block}">${tx.block}</a>` : 'Unconfirmed'}
                     </span>
                 </div>
@@ -498,6 +500,7 @@ class BlockExplorer {
     async showAddress(address) {
         this.updateHash('address', address);
         this.currentPage = 'address';
+        this.currentTransactionId = null;
         this.showPage('addressPage');
         this.updateTitle(`Address ${address.substring(0, 8)}... - Transaction.st`);
         
@@ -602,6 +605,7 @@ class BlockExplorer {
     async showBlock(hash, network) {
         this.updateHash('block', hash, network);
         this.currentPage = 'block';
+        this.currentTransactionId = null;
         this.showPage('blockPage');
         this.updateTitle(`Block ${hash.substring(0, 8)}... - Transaction.st`);
         
@@ -800,6 +804,15 @@ class BlockExplorer {
             }
             this.updateLatestTransactions();
         } else if (data.type === 'block' && data.data) {
+            // Check if current txid got confirmed, update block text if true
+            if (this.currentTransactionId && data.data.tx && data.data.tx.includes(this.currentTransactionId)) {
+                const elements = document.querySelectorAll('[data-block-status="unconfirmed"]');
+                elements.forEach(el => {
+                    el.innerHTML = `<a class="block-link" href="#/block/${data.crypto}/${data.data.hash}">${data.data.hash}</a>`;
+                    el.setAttribute('data-block-status', 'confirmed');
+                });
+            }
+            
             const block = {
                 hash: data.data.hash,
                 height: data.data.height,
@@ -898,6 +911,7 @@ class BlockExplorer {
     showHome() {
         window.history.pushState(null, '', window.location.pathname);
         this.currentPage = 'home';
+        this.currentTransactionId = null;
         this.showPage('homePage');
         this.updateTitle('Transaction.st - Block Explorer');
     }
