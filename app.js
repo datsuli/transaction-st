@@ -21,6 +21,7 @@ class BlockExplorer {
         await this.loadRates();
         this.updateLatestBlocks();
         this.connectToSocket();
+        this.pollForUpdates();
         
         // Handle initial hash routing
         await this.handleInitialHash();
@@ -58,7 +59,6 @@ class BlockExplorer {
         if (window.location.hash) {
             await this.handleHashChange();
         } else {
-            // No hash, show home page
             this.currentPage = 'home';
             this.showPage('homePage');
             this.updateTitle('Transaction.st - Block Explorer');
@@ -78,47 +78,28 @@ class BlockExplorer {
             return;
         }
         
-        const parts = hash.slice(1).split('/');
+        const parts = hash.slice(1).split('/').filter(Boolean);
         
-        if (parts.length < 2 || parts.length > 3) {
+        if (parts.length < 2 || parts.length > 3 || !parts[parts.length - 1].trim()) {
             this.show404();
             return;
         }
         
-        const type = parts[0];
-        let network = null;
-        let id;
+        const [type, networkOrId, id] = parts;
+        const network = parts.length === 3 ? networkOrId : null;
+        const identifier = parts.length === 3 ? id : networkOrId;
         
-        if (parts.length === 3) {
-            // Format: /tx/btc/hash or /block/btc/hash  
-            network = parts[1];
-            id = parts[2];
+        const handlers = {
+            tx: () => this.showTransaction(identifier, network),
+            address: () => this.showAddress(identifier),
+            block: () => network ? this.showBlock(identifier, network) : this.searchBlockHash(identifier)
+        };
+        
+        const handler = handlers[type];
+        if (handler) {
+            await handler();
         } else {
-            // Format: /tx/hash or /address/addr or /block/hash
-            id = parts[1];
-        }
-        
-        if (!id.trim()) {
             this.show404();
-            return;
-        }
-        
-        switch (type) {
-            case 'tx':
-                await this.showTransaction(id, network);
-                break;
-            case 'block':
-                if (network) {
-                    await this.showBlock(id, network);
-                } else {
-                    await this.searchBlockHash(id);
-                }
-                break;
-            case 'address':
-                await this.showAddress(id);
-                break;
-            default:
-                this.show404();
         }
     }
 
@@ -127,6 +108,24 @@ class BlockExplorer {
         if (window.location.hash !== newHash) {
             window.history.pushState(null, '', newHash);
         }
+    }
+
+    updateConfirmationStatus(isConfirmed) {
+        const pageHeader = document.querySelector('#transactionPage .page-header');
+        if (!pageHeader) return;
+        
+        const existingStatus = pageHeader.querySelector('.confirmation-status');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+        
+        const confirmationStatus = document.createElement('span');
+        confirmationStatus.className = `confirmation-status ${isConfirmed ? 'confirmed' : 'unconfirmed'}`;
+        confirmationStatus.innerHTML = `
+            <span class="confirmation-status-dot"></span>
+            ${isConfirmed ? 'Confirmed' : 'Unconfirmed'}
+        `;
+        pageHeader.appendChild(confirmationStatus);
     }
 
     async loadNetworkStatus() {
@@ -142,46 +141,59 @@ class BlockExplorer {
         }
     }
 
+    createNetworkCard(network, networkData) {
+        const isOnline = !!networkData;
+        const statusClass = isOnline ? 'online' : 'offline';
+        
+        const statsContent = isOnline 
+            ? `<div><strong>Block:</strong> <span class="block-height">${networkData.blocks.toLocaleString()}</span></div>
+               <div><strong>Size:</strong> ${this.formatBytes(networkData.size_on_disk)}</div>
+               <div><strong>Uptime:</strong> ${this.formatUptime(networkData.uptime)}</div>`
+            : `<div class="offline-text">Offline</div>`;
+
+        return `
+            <div class="network-item ${statusClass}" data-network="${network}">
+                <h3>
+                    <span class="status-dot ${statusClass}"></span>
+                    ${network.toUpperCase()}
+                </h3>
+                <div class="network-stats">
+                    ${statsContent}
+                </div>
+            </div>
+        `;
+    }
+
     displayNetworkStatus() {
         const container = document.getElementById('networkStatus');
-        container.innerHTML = '';
-
-        this.networks.forEach(network => {
-            const networkData = this.networkInfo[network];
-            const card = document.createElement('div');
-            card.className = `network-item ${networkData ? 'online' : 'offline'}`;
-
-            if (networkData) {
-                card.innerHTML = `
-                    <h3>
-                        <span class="status-dot online"></span>
-                        ${network.toUpperCase()}
-                    </h3>
-                    <div class="network-stats">
-                        <div><strong>Block:</strong> ${networkData.blocks.toLocaleString()}</div>
-                        <div><strong>Size:</strong> ${this.formatBytes(networkData.size_on_disk)}</div>
-                        <div><strong>Uptime:</strong> ${this.formatUptime(networkData.uptime)}</div>
-                    </div>
-                `;
-            } else {
-                card.innerHTML = `
-                    <h3>
-                        <span class="status-dot offline"></span>
-                        ${network.toUpperCase()}
-                    </h3>
-                    <div class="network-stats">
-                        <div class="offline-text">Offline</div>
-                    </div>
-                `;
-            }
-
-            container.appendChild(card);
-        });
+        container.innerHTML = this.networks
+            .map(network => this.createNetworkCard(network, this.networkInfo[network]))
+            .join('');
     }
 
     displayNetworkError() {
         const container = document.getElementById('networkStatus');
         container.innerHTML = '<div class="error">Failed to load network status. Please try again later.</div>';
+    }
+
+    pollForUpdates() {
+        // Update network status
+        setInterval(() => {
+            this.loadNetworkStatus();
+        }, 60000);
+        
+        // Update rates
+        setInterval(() => {
+            this.loadRates();
+        }, 60000);
+    }
+
+    updateNetworkBlockHeight(network, newHeight) {
+        const networkCard = document.querySelector(`[data-network="${network}"] .block-height`);
+        if (networkCard && this.networkInfo[network]) {
+            this.networkInfo[network].blocks = newHeight;
+            networkCard.textContent = newHeight.toLocaleString();
+        }
     }
 
     async loadRates() {
@@ -205,15 +217,18 @@ class BlockExplorer {
             if (/^[a-fA-F0-9]{64}$/.test(query)) {
                 const isTransaction = await this.checkIfTransaction(query);
                 if (isTransaction) {
+                    searchInput.value = '';
                     await this.showTransaction(query);
                     return;
                 } else {
+                    searchInput.value = '';
                     await this.searchBlockHash(query);
                     return;
                 }
             }
             
             if (this.isValidAddress(query)) {
+                searchInput.value = '';
                 await this.showAddress(query);
                 return;
             }
@@ -271,6 +286,14 @@ class BlockExplorer {
         this.showPage('transactionPage');
         this.updateTitle(`Transaction ${txid.substring(0, 8)}... - Transaction.st`);
         
+        const pageHeader = document.querySelector('#transactionPage .page-header');
+        if (pageHeader) {
+            const existingStatus = pageHeader.querySelector('.confirmation-status');
+            if (existingStatus) {
+                existingStatus.remove();
+            }
+        }
+        
         const container = document.getElementById('transactionContent');
         container.innerHTML = '<div class="loading">Loading transaction...</div>';
 
@@ -318,22 +341,24 @@ class BlockExplorer {
                 this.show404();
                 return;
             }
-            this.displayTransaction(rpcData || dbData, container, dbData);
+            const selectedData = rpcData || dbData;
+            if (selectedData.type === 'rpc') {
+                this.displayRpcTransaction(selectedData.data, selectedData.network, container, dbData);
+            } else {
+                this.displayDatabaseTransaction(selectedData.data, container);
+            }
         } catch (error) {
             this.show404();
         }
     }
 
-    displayTransaction(txData, container, dbData = null) {
-        if (txData.type === 'rpc') {
-            this.displayRpcTransaction(txData.data, txData.network, container, dbData);
-        } else {
-            this.displayDatabaseTransaction(txData.data, container);
-        }
-    }
-
     displayDatabaseTransaction(data, container) {
         const transactions = Array.isArray(data) ? data : [data];
+        
+        if (transactions.length > 0) {
+            this.updateConfirmationStatus(!!transactions[0].block);
+        }
+        
         let html = '';
         
         transactions.forEach((tx, index) => {
@@ -377,7 +402,7 @@ class BlockExplorer {
                     ${tx.time ? `
                     <div class="detail-row">
                         <span class="detail-label">First Seen</span>
-                        <span class="detail-value">${new Date(tx.time).toLocaleString()}</span>
+                        <span class="detail-value">${this.formatDateTimeConditional(new Date(tx.time))}</span>
                     </div>
                     ` : ''}
                 </div>
@@ -390,6 +415,8 @@ class BlockExplorer {
     displayRpcTransaction(data, network, container, dbData = null) {
         const tx = data.tx;
         const firstSeenTime = dbData && dbData.data && dbData.data.length > 0 ? dbData.data[0].time : null;
+        
+        this.updateConfirmationStatus(!!tx.block);
         
         let html = `
             <div class="detail-card">
@@ -431,7 +458,7 @@ class BlockExplorer {
                 ${firstSeenTime ? `
                 <div class="detail-row">
                     <span class="detail-label">First Seen</span>
-                    <span class="detail-value">${new Date(firstSeenTime).toLocaleString()}</span>
+                    <span class="detail-value">${this.formatDateTimeConditional(new Date(firstSeenTime))}</span>
                 </div>
                 ` : ''}
             </div>
@@ -579,7 +606,7 @@ class BlockExplorer {
                                     <div class="text-small text-muted">
                                         ${tx.block ? `Block: <a class="hash" href="#/block/${tx.crypto}/${tx.block}" onclick="event.stopPropagation()">${tx.block}</a>` : 'Pending'}
                                         ${tx.type === 'inbound' && tx.spent ? ` • Spent` : ''}
-                                        ${tx.time ? ` • ${new Date(tx.time).toLocaleString()}` : ''}
+                                        ${tx.time ? ` • ${this.formatDateTimeConditional(new Date(tx.time))}` : ''}
                                     </div>
                                 </div>
                             </div>
@@ -593,7 +620,6 @@ class BlockExplorer {
     }
 
     getSortedTransactions(inbound, outbound) {
-        // Add type flag to each transaction
         const inboundWithType = inbound.map(tx => ({ ...tx, type: 'inbound' }));
         const outboundWithType = outbound.map(tx => ({ ...tx, type: 'outbound' }));
         
@@ -645,7 +671,7 @@ class BlockExplorer {
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Time</span>
-                    <span class="detail-value">${new Date(data.time * 1000).toLocaleString()}</span>
+                    <span class="detail-value">${this.formatDateTimeConditional(new Date(data.time * 1000))}</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Transactions</span>
@@ -804,13 +830,22 @@ class BlockExplorer {
             }
             this.updateLatestTransactions();
         } else if (data.type === 'block' && data.data) {
-            // Check if current txid got confirmed, update block text if true
             if (this.currentTransactionId && data.data.tx && data.data.tx.includes(this.currentTransactionId)) {
                 const elements = document.querySelectorAll('[data-block-status="unconfirmed"]');
                 elements.forEach(el => {
                     el.innerHTML = `<a class="block-link" href="#/block/${data.crypto}/${data.data.hash}">${data.data.hash}</a>`;
                     el.setAttribute('data-block-status', 'confirmed');
                 });
+                
+                const confirmationElements = document.querySelectorAll('.confirmation-status.unconfirmed');
+                confirmationElements.forEach(el => {
+                    el.className = 'confirmation-status confirmed';
+                    el.innerHTML = '<span class="confirmation-status-dot"></span>Confirmed';
+                });
+            }
+            
+            if (data.data.height) {
+                this.updateNetworkBlockHeight(data.crypto, data.data.height);
             }
             
             const block = {
@@ -854,7 +889,7 @@ class BlockExplorer {
             <a class="list-item block-item" href="#/block/${block.crypto}/${block.hash}">
                 <div class="block-summary">
                     <span class="block-height">${block.crypto.toUpperCase()} #${block.height.toLocaleString()}</span>
-                    <span class="block-time">${block.time ? this.formatBlockTime(block.time) : ''}</span>
+                    <span class="block-time">${block.time ? this.formatDateTimeConditional(new Date(block.time * 1000)) : ''}</span>
                 </div>
                 <div class="block-hash">${block.hash}</div>
             </a>
@@ -958,11 +993,17 @@ class BlockExplorer {
         }
     }
 
-    formatBlockTime(timestamp) {
-        if (!timestamp) return '';
+    formatDateTimeConditional(date) {
+        if (!date) return '';
         
-        const blockTime = new Date(timestamp * 1000);
-        return blockTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
+        
+        if (isToday) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } else {
+            return date.toLocaleString();
+        }
     }
 
     formatUptime(seconds) {
@@ -982,16 +1023,18 @@ class BlockExplorer {
     }
 
     formatAmountWithUSD(amount, network) {
-        const rate = this.rates[network.toLowerCase()];
-        const formattedAmount = parseFloat(amount).toFixed(8).replace(/\.?0+$/, '');
+        const numAmount = parseFloat(amount);
+        const formattedAmount = numAmount.toFixed(8).replace(/\.?0+$/, '');
+        const currencySymbol = network.toUpperCase();
         
-        if (!rate || !amount || amount === 0) {
-            return `${formattedAmount} ${network.toUpperCase()}`;
+        const rate = this.rates[network.toLowerCase()];
+        if (!rate || !numAmount) {
+            return `${formattedAmount} ${currencySymbol}`;
         }
         
-        const usdValue = (parseFloat(amount) * rate).toFixed(2);
+        const usdValue = (numAmount * rate).toFixed(2);
         const formattedUSD = new Intl.NumberFormat('en-US').format(usdValue);
-        return `${formattedAmount} ${network.toUpperCase()} <span class="usd-value">($${formattedUSD})</span>`;
+        return `${formattedAmount} ${currencySymbol} <span class="usd-value">($${formattedUSD})</span>`;
     }
 }
 
@@ -1012,9 +1055,6 @@ function showAddress(address) {
     explorer.showAddress(address);
 }
 
-function showBlockByHash(hash, network) {
-    explorer.showBlock(hash, network);
-}
 
 document.addEventListener('DOMContentLoaded', () => {
     explorer = new BlockExplorer();
